@@ -32,7 +32,7 @@ def train(
     timme = timme.replace(' ', '_')
     timme = timme.replace(':', '_')
     weights_to = osp.join(weights_to, 'run' + timme)
-    mkdir_if_missing(weights_to)
+    mkdir_if_missing(weights_to + '/cfg')
     if resume:
         latest_resume = osp.join(weights_from, 'latest.pt')
 
@@ -99,8 +99,7 @@ def train(
 
     # model_info(model)
     t0 = time.time()
-    for epoch in range(epochs):
-        epoch += start_epoch
+    for epoch in range(start_epoch, epochs):
         logger.info(('%8s%12s' + '%10s' * 6) % (
             'Epoch', 'Batch', 'box', 'conf', 'id', 'total', 'nTargets', 'time'))
 
@@ -170,10 +169,10 @@ def train(
         # Calculate mAP
         if epoch % opt.test_interval == 0:
             with torch.no_grad():
-                mAP, R, P = test.test(cfg, data_cfg, weights=latest, batch_size=batch_size, img_size=img_size,
-                                      print_interval=40, nID=dataset.nID)
-                test.test_emb(cfg, data_cfg, weights=latest, batch_size=batch_size, img_size=img_size,
-                              print_interval=40, nID=dataset.nID)
+                mAP, R, P = test.test(cfg, data_cfg, weights=latest, batch_size=batch_size,
+                                      print_interval=40)
+                #test.test_emb(cfg, data_cfg, weights=latest, batch_size=batch_size,
+                #              print_interval=40)
 
         # Call scheduler.step() after opimizer.step() with pytorch > 1.1.0
         scheduler.step()
