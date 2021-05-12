@@ -7,6 +7,8 @@ from models import *
 from tracker import matching
 from .basetrack import BaseTrack, TrackState
 
+EPS = 1e-5
+
 
 class STrack(BaseTrack):
 
@@ -133,7 +135,7 @@ class STrack(BaseTrack):
         """
         ret = np.asarray(tlwh).copy()
         ret[:2] += ret[2:] / 2
-        ret[2] /= ret[3]
+        ret[2] /= ret[3] + EPS
         return ret
 
     def to_xyah(self):
@@ -160,7 +162,8 @@ class STrack(BaseTrack):
 class JDETracker(object):
     def __init__(self, opt, frame_rate=30):
         self.opt = opt
-        self.model = Darknet(opt.cfg, nID=14455)
+        #self.model = Darknet(opt.cfg, nID=14455)
+        self.model = Darknet(opt.cfg)
         # load_darknet_weights(self.model, opt.weights)
         self.model.load_state_dict(torch.load(opt.weights, map_location='cpu')['model'], strict=False)
         self.model.cuda().eval()
@@ -208,6 +211,7 @@ class JDETracker(object):
         with torch.no_grad():
             pred = self.model(im_blob)
         # pred is tensor of all the proposals (default number of proposals: 54264). Proposals have information associated with the bounding box and embeddings
+        #print(pred[:,:,4])
         pred = pred[pred[:, :, 4] > self.opt.conf_thres]
         # pred now has lesser number of proposals. Proposals rejected on basis of object confidence score
         if len(pred) > 0:
