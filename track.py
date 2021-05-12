@@ -93,8 +93,8 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
         for t in online_targets:
             tlwh = t.tlwh
             tid = t.track_id
-            vertical = tlwh[2] / tlwh[3] > 1.6
-            if tlwh[2] * tlwh[3] > opt.min_box_area and not vertical:
+            vertical = tlwh[2] / tlwh[3] > 1.6 # This forces vertical bounding boxes
+            if tlwh[2] * tlwh[3] > opt.min_box_area:# and not vertical:
                 online_tlwhs.append(tlwh)
                 online_ids.append(tid)
         timer.toc()
@@ -184,7 +184,7 @@ if __name__ == '__main__':
     parser.add_argument('--save-videos', action='store_true', help='save tracking results (video)')
     opt = parser.parse_args()
     print(opt, end='\n\n')
- 
+
     if not opt.test_mot16:
         seqs_str = '''MOT17-02-SDP
                       MOT17-04-SDP
@@ -205,6 +205,10 @@ if __name__ == '__main__':
                      MOT16-14'''
         data_root = '/home/wangzd/datasets/MOT/MOT16/images/test'
     seqs = [seq.strip() for seq in seqs_str.split()]
+
+    # Overwrite
+    data_root = '/mnt/lab-comp/norm_fps_5_merged_mot_seq'
+    seqs = ('val_imgs',)
 
     main(opt,
          data_root=data_root,
