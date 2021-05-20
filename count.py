@@ -143,10 +143,7 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
     # save results
     write_results(result_filename, results, data_type)
 
-    print("IDs:", counted_ids)
-    print("Counted:", len(counted_ids))
-
-    return frame_id, timer.average_time, timer.calls
+    return frame_id, timer.average_time, timer.calls, counted_ids
 
 def track(opt):
     result_root = opt.output_root if opt.output_root!='' else '.'
@@ -167,7 +164,7 @@ def track(opt):
 
     frame_dir = None if opt.output_format=='text' else osp.join(result_root, 'frame')
     #try:
-    eval_seq(opt, dataloader, 'mot', result_filename,
+    _,_,_,counted_ids = eval_seq(opt, dataloader, 'mot', result_filename,
              save_dir=frame_dir, show_image=False, frame_rate=frame_rate)
     #except Exception as e:
     #    logger.info(e)
@@ -176,6 +173,9 @@ def track(opt):
         output_video_path = osp.join(result_root, 'result.mp4')
         cmd_str = 'ffmpeg -f image2 -i {}/%05d.jpg -c:v libx264 {}'.format(osp.join(result_root, 'frame'), output_video_path)
         os.system(cmd_str)
+
+    print("IDs:", counted_ids)
+    print("Counted:", len(counted_ids))
 
         
 if __name__ == '__main__':
