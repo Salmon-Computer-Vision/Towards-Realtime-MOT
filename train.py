@@ -27,10 +27,7 @@ def train(
 ):
     # The function starts
 
-    timme = strftime("%Y-%d-%m %H:%M:%S", gmtime())
-    timme = timme[5:-3].replace('-', '_')
-    timme = timme.replace(' ', '_')
-    timme = timme.replace(':', '_')
+    timme = strftime("%m_%d_%H_%M", gmtime())
     weights_to = osp.join(weights_to, 'run' + timme)
     mkdir_if_missing(weights_to + '/cfg')
     if resume:
