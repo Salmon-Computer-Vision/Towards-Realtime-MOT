@@ -104,8 +104,10 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
     results = []
     frame_id = 0
 
+    num_ids = {}
     counted_ids = [] # IDs that are counted
-    count_thresh = opt.img_size[0] * 0.55
+    count_thresh = opt.img_size[0] * 0.40
+    hist_thresh = 3
     print(count_thresh)
     for path, img, img0 in dataloader:
         if frame_id % 20 == 0:
@@ -120,17 +122,19 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
         for t in online_targets:
             tlwh = t.tlwh
             tid = t.track_id
-            horizontal = tlwh[2] / tlwh[3] > 1.6 # This forces horizontal bounding boxes
+            horizontal = tlwh[2] / tlwh[3] > 1.6 # his forces horizontal bounding boxes
             if tlwh[2] * tlwh[3] > opt.min_box_area and horizontal:
+                if not tid in num_ids:
+                    num_ids[tid] = 1
+                else:
+                    num_ids[tid] += 1
+                    if tlwh[0] > count_thresh and not tid in counted_ids and num_ids[tid] > hist_thresh:
+                        counted_ids.append(tid)
                 online_tlwhs.append(tlwh)
                 online_ids.append(tid)
         timer.toc()
         # save results
         results.append((frame_id + 1, online_tlwhs, online_ids))
-
-        for i, box in enumerate(online_tlwhs):
-            if box[0] > count_thresh and not online_ids[i] in counted_ids:
-                counted_ids.append(online_ids[i])
 
         if show_image or save_dir is not None:
             online_im = vis.plot_tracking(img0, online_tlwhs, online_ids, frame_id=frame_id,
@@ -175,7 +179,7 @@ def track(opt):
         os.system(cmd_str)
 
     print("IDs:", counted_ids)
-    print("Counted:", len(counted_ids))
+    print("Count:", len(counted_ids))
 
         
 if __name__ == '__main__':
