@@ -122,7 +122,10 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
 
         # run tracking
         timer.tic()
-        blob = torch.from_numpy(img).cuda().unsqueeze(0)
+        if torch.cuda.is_available():
+            blob = torch.from_numpy(img).cuda().unsqueeze(0)
+        else:
+            blob = torch.from_numpy(img).unsqueeze(0)
         online_targets = tracker.update(blob, img0)
         online_tlwhs = []
         online_ids = []
