@@ -204,7 +204,10 @@ class YOLOLayer(nn.Module):
             p_emb = F.normalize(p_emb.unsqueeze(1).repeat(1,self.nA,1,1,1).contiguous(), dim=-1)
             #p_emb_up = F.normalize(shift_tensor_vertically(p_emb, -self.shift[self.layer]), dim=-1)
             #p_emb_down = F.normalize(shift_tensor_vertically(p_emb, self.shift[self.layer]), dim=-1)
-            p_cls = torch.zeros(nB,self.nA,nGh,nGw,1).cuda()               # Temp
+            if torch.cuda.is_available():
+                p_cls = torch.zeros(nB,self.nA,nGh,nGw,1).cuda()               # Temp
+            else:
+                p_cls = torch.zeros(nB,self.nA,nGh,nGw,1)               # Temp
             p = torch.cat([p_box, p_conf, p_cls, p_emb], dim=-1)
             #p = torch.cat([p_box, p_conf, p_cls, p_emb, p_emb_up, p_emb_down], dim=-1)
             p[..., :4] = decode_delta_map(p[..., :4], self.anchor_vec.to(p))
