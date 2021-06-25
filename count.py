@@ -26,14 +26,20 @@ Todo:
 
 import logging
 import argparse
-from utils.utils import *
+import os
+
+from utils.utils import mkdir_if_missing
+from utils.utils import osp
+import torch
+import cv2
+
+#from utils.utils import *
 from utils.log import logger
 from utils.timer import Timer
 from utils.parse_config import parse_model_cfg
 import utils.datasets as datasets
 #from track import eval_seq
 
-from tracker.multitracker import JDETracker
 from utils import visualization as vis
 
 
@@ -62,6 +68,7 @@ def write_results(filename, results, data_type):
 
 
 def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_image=True, frame_rate=30):
+    from tracker.multitracker import JDETracker
     '''
        Processes the video sequence given and provides the output of tracking result (write the results in video file)
 
@@ -107,7 +114,7 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
     num_ids = {}
     counted_ids = [] # IDs that are counted
     count_thresh = opt.img_size[0] * 0.40
-    hist_thresh = 3
+    hist_thresh = int(frame_rate / 2) # A full half second
     print(count_thresh)
     for path, img, img0 in dataloader:
         if frame_id % 20 == 0:
@@ -162,9 +169,10 @@ def track(opt):
     n_frame = 0
 
     logger.info('Starting tracking...')
-    dataloader = datasets.LoadVideo(opt.input_video, opt.img_size)
-    result_filename = os.path.join(result_root, 'results.txt')
-    frame_rate = dataloader.frame_rate 
+    if opt.input_format == 'video':
+      dataloader = datasets.LoadVideo(opt.input, opt.img_size)
+      result_filename = os.path.join(result_root, 'results.txt')
+      frame_rate = dataloader.frame_rate 
 
     frame_dir = None if opt.output_format=='text' else osp.join(result_root, 'frame')
     #try:
@@ -183,19 +191,27 @@ def track(opt):
 
         
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(prog='demo.py')
-    parser.add_argument('--cfg', type=str, default='cfg/yolov3_1088x608.cfg', help='cfg file path')
-    parser.add_argument('--weights', type=str, default='weights/latest.pt', help='path to weights file')
-    parser.add_argument('--iou-thres', type=float, default=0.5, help='iou threshold required to qualify as detected')
-    parser.add_argument('--conf-thres', type=float, default=0.5, help='object confidence threshold')
-    parser.add_argument('--nms-thres', type=float, default=0.4, help='iou threshold for non-maximum suppression')
-    parser.add_argument('--min-box-area', type=float, default=200, help='filter out tiny boxes')
-    parser.add_argument('--track-buffer', type=int, default=30, help='tracking buffer')
-    parser.add_argument('--input-video', type=str, help='path to the input video')
-    parser.add_argument('--output-format', type=str, default='video', choices=['video', 'text'], help='Expected output format. Video or text.')
-    parser.add_argument('--output-root', type=str, default='results', help='expected output root path')
-    opt = parser.parse_args()
-    print(opt, end='\n\n')
+  parser = argparse.ArgumentParser(prog='demo.py')
+  parser.add_argument('--cfg', type=str, default='cfg/yolov3_1088x608.cfg', help='cfg file path')
+  parser.add_argument('--weights', type=str, default='weights/latest.pt', help='path to weights file')
+  parser.add_argument('--iou-thres', type=float, default=0.5, help='iou threshold required to qualify as detected')
+  parser.add_argument('--conf-thres', type=float, default=0.5, help='object confidence threshold')
+  parser.add_argument('--nms-thres', type=float, default=0.4, help='iou threshold for non-maximum suppression')
+  parser.add_argument('--min-box-area', type=float, default=200, help='filter out tiny boxes')
+  parser.add_argument('--track-buffer', type=int, default=30, help='tracking buffer')
+  parser.add_argument('--input-format', type=str, default='video', choices=['video', 'images'], help='Expected input format. video or images.')
+  parser.add_argument('--input', type=str, help='path to the input video or image directory depending on input format.')
+  parser.add_argument('--output-format', type=str, default='video', choices=['video', 'text'], help='Expected output format. Video or text.')
+  parser.add_argument('--output-root', type=str, default='results', help='expected output root path')
 
-    track(opt)
+  subp = parser.add_subparsers()
+  detect_p = subp.add_parser('detect', help='Adds tensorflow detection to classify categories')
+  detect_p.add_argument('model_dir', help='Path to the model folder. Must have "pipeline.json" in the directory')
+  detect_p.add_argument('ckpt_path', help='Path to the checkpoint file. Eg. /path/to/ckpt-0')
+  detect_p.add_argument('labels_path', help='Path to the labels text file. Eg. /path/to/labels.pbtxt')
+
+  opt = parser.parse_args()
+  print(opt, end='\n\n')
+
+  track(opt)
 
