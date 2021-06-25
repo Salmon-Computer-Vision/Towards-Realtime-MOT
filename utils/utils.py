@@ -373,7 +373,8 @@ def build_targets_thres(target, anchor_wh, nA, nC, nGh, nGw):
 def generate_anchor(nGh, nGw, anchor_wh):
     nA = len(anchor_wh)
     yy, xx =torch.meshgrid(torch.arange(nGh), torch.arange(nGw))
-    xx, yy = xx.cuda(), yy.cuda()
+    if torch.cuda.is_available():
+        xx, yy = xx.cuda(), yy.cuda()
 
     mesh = torch.stack([xx, yy], dim=0)                                              # Shape 2, nGh, nGw
     mesh = mesh.unsqueeze(0).repeat(nA,1,1,1).float()                                # Shape nA x 2 x nGh x nGw
