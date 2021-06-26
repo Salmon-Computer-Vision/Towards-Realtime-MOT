@@ -151,6 +151,8 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
                                           fps=1. / timer.average_time)
         if show_image:
             cv2.imshow('online_im', online_im)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
         if save_dir is not None:
             cv2.imwrite(os.path.join(save_dir, '{:05d}.jpg'.format(frame_id)), online_im)
         frame_id += 1
@@ -180,7 +182,7 @@ def track(opt):
     frame_dir = None if opt.output_format=='text' else osp.join(result_root, 'frame')
     #try:
     _,_,_,counted_ids = eval_seq(opt, dataloader, 'mot', result_filename,
-             save_dir=frame_dir, show_image=False, frame_rate=frame_rate)
+             save_dir=frame_dir, show_image=opt.show_image, frame_rate=frame_rate)
     #except Exception as e:
     #    logger.info(e)
 
@@ -206,6 +208,7 @@ if __name__ == '__main__':
   parser.add_argument('--input', type=str, help='path to the input video or image directory depending on input format.')
   parser.add_argument('--output-format', type=str, default='video', choices=['video', 'text'], help='Expected output format. Video or text.')
   parser.add_argument('--output-root', type=str, default='results', help='expected output root path')
+  parser.add_argument('--show-image', action='store_true', help='Show image frames as they are being processed')
 
   subp = parser.add_subparsers()
   detect_p = subp.add_parser('detect', help='Adds tensorflow detection to classify categories')
