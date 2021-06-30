@@ -105,7 +105,7 @@ class LoadVideo:  # for inference
 
     def __next__(self):
         self.count += 1
-        if not self.stream && self.count == len(self):
+        if not self.stream and self.count == len(self):
             raise StopIteration
         # Read image
         res, img0 = self.cap.read()  # BGR
