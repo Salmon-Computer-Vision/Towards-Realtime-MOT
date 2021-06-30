@@ -78,8 +78,8 @@ class LoadImages:  # for inference
 
 class LoadVideo:  # for inference
     def __init__(self, path, img_size=(1088, 608)):
-        #if not os.path.isfile(path):
-            #raise FileExistsError
+        if not os.path.isfile(path):
+            self.stream = True # Assume a video stream
         
         self.cap = cv2.VideoCapture(path)        
         self.frame_rate = int(round(self.cap.get(cv2.CAP_PROP_FPS)))
@@ -105,8 +105,8 @@ class LoadVideo:  # for inference
 
     def __next__(self):
         self.count += 1
-        #if self.count == len(self):
-            #raise StopIteration
+        if not self.stream && self.count == len(self):
+            raise StopIteration
         # Read image
         res, img0 = self.cap.read()  # BGR
         assert img0 is not None, 'Failed to load frame {:d}'.format(self.count)
