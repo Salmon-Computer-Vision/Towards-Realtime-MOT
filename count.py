@@ -41,6 +41,7 @@ import utils.datasets as datasets
 #from track import eval_seq
 
 from utils import visualization as vis
+import ffmpeg
 
 
 logger.setLevel(logging.INFO)
@@ -188,8 +189,14 @@ def track(opt):
 
     if opt.output_format == 'video':
         output_video_path = osp.join(result_root, 'result.mp4')
-        cmd_str = 'ffmpeg -f image2 -i {}/%05d.jpg -c:v libx264 {}'.format(osp.join(result_root, 'frame'), output_video_path)
-        os.system(cmd_str)
+
+        (
+          ffmpeg.input(f"{osp.join(result_root, 'frame')}/%05d.jpg", f='image2')
+          .output(output_video_path, vcodec='libx264')
+          .run()
+        )
+
+        #cmd_str = 'ffmpeg -f image2 -i {}/%05d.jpg -c:v libx264 {}'.format(osp.join(result_root, 'frame'), output_video_path)
 
     print("IDs:", counted_ids)
     print("Count:", len(counted_ids))
