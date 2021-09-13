@@ -27,6 +27,7 @@ Todo:
 import logging
 import argparse
 import os
+import math
 
 from utils.utils import mkdir_if_missing
 from utils.utils import osp
@@ -67,6 +68,11 @@ def write_results(filename, results, data_type):
                 f.write(line)
     logger.info('save results to {}'.format(filename))
 
+def write_counts(filename, counted_ids):
+    with open(filename, 'w') as f:
+        f.write(f"IDs: {counted_ids}\n")
+        f.write(f"Count: {len(counted_ids)}\n")
+    logger.info(f"saved counts to {filename}")
 
 def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_image=True, frame_rate=30):
     from tracker.multitracker import JDETracker
@@ -115,7 +121,7 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
     num_ids = {}
     counted_ids = [] # IDs that are counted
     count_thresh = opt.img_size[0] * 0.40
-    hist_thresh = int(frame_rate / 2) # A full half second
+    hist_thresh = math.ceil(frame_rate / 4) # A quarter of a second
     print(count_thresh)
     for path, img, img0 in dataloader:
         if frame_id % 20 == 0:
@@ -198,6 +204,7 @@ def track(opt):
 
         #cmd_str = 'ffmpeg -f image2 -i {}/%05d.jpg -c:v libx264 {}'.format(osp.join(result_root, 'frame'), output_video_path)
 
+    write_counts(osp.join(result_root, "counts.txt"), counted_ids)
     print("IDs:", counted_ids)
     print("Count:", len(counted_ids))
 
