@@ -191,7 +191,7 @@ def track(opt):
         output_video_path = osp.join(result_root, 'result.mp4')
 
         (
-          ffmpeg.input(f"{osp.join(result_root, 'frame')}/%05d.jpg", f='image2')
+          ffmpeg.input(f"{osp.join(result_root, 'frame')}/%05d.jpg", f='image2', framerate=frame_rate)
           .output(output_video_path, vcodec='libx264')
           .run()
         )
