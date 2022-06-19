@@ -74,7 +74,7 @@ def write_counts(filename, counted_ids):
         f.write(f"Count: {len(counted_ids)}\n")
     logger.info(f"saved counts to {filename}")
 
-def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_image=True, frame_rate=30):
+def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_image=True, frame_rate=30, left_direct=False):
     from tracker.multitracker import JDETracker
     '''
        Processes the video sequence given and provides the output of tracking result (write the results in video file)
@@ -120,7 +120,18 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
 
     num_ids = {}
     counted_ids = [] # IDs that are counted
-    count_thresh = opt.img_size[0] * 0.40 # Box must be past 40% of the screen to the right
+
+    count_thresh = 0.40 # Box must be past this percentage of the screen in the direction specified
+
+    def past_thresh(tlwh):
+        right_dir_thresh = opt.img_size[0] * count_thresh
+        left_dir_thresh = opt.img_size[0] * (1.0 - count_thresh)
+
+        if left_direct:
+            return tlwh[0] + tlwh[2] < left_dir_thresh
+        else:
+            return tlwh[0] > right_dir_thresh
+
     hist_thresh = math.ceil(frame_rate / 4) # A quarter of a second
     horiz_thresh = 1.3 # Forces rectangular bounding boxes (Rect ratio)
     print(count_thresh)
@@ -146,7 +157,7 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
                     num_ids[tid] = 1
                 else:
                     num_ids[tid] += 1
-                    if tlwh[0] > count_thresh and not tid in counted_ids and num_ids[tid] > hist_thresh:
+                    if past_thresh(tlwh) and not tid in counted_ids and num_ids[tid] > hist_thresh:
                         counted_ids.append(tid)
                 online_tlwhs.append(tlwh)
                 online_ids.append(tid)
@@ -190,7 +201,8 @@ def track(opt):
     frame_dir = None if opt.output_format=='text' else osp.join(result_root, 'frame')
     #try:
     _,_,_,counted_ids = eval_seq(opt, dataloader, 'mot', result_filename,
-             save_dir=frame_dir, show_image=opt.show_image, frame_rate=frame_rate)
+             save_dir=frame_dir, show_image=opt.show_image, frame_rate=frame_rate,
+             left_direct=args.left)
     #except Exception as e:
     #    logger.info(e)
 
@@ -219,11 +231,12 @@ if __name__ == '__main__':
   parser.add_argument('--nms-thres', type=float, default=0.4, help='iou threshold for non-maximum suppression')
   parser.add_argument('--min-box-area', type=float, default=200, help='filter out tiny boxes')
   parser.add_argument('--track-buffer', type=int, default=30, help='tracking buffer')
-  parser.add_argument('--input-format', type=str, default='video', choices=['video', 'images'], help='Expected input format. video or images.')
+  parser.add_argument('--input-format', type=str, default='video', choices=['video', 'images'], help='Expected input format (Default: Video)')
   parser.add_argument('--input', type=str, help='path to the input video or image directory depending on input format.')
-  parser.add_argument('--output-format', type=str, default='video', choices=['video', 'text'], help='Expected output format. Video or text.')
+  parser.add_argument('--output-format', type=str, default='video', choices=['video', 'text'], help='Expected output format (Default: Video)')
   parser.add_argument('--output-root', type=str, default='results', help='expected output root path')
   parser.add_argument('--show-image', action='store_true', help='Show image frames as they are being processed')
+  parser.add_argument('-l', '--left', action='store_true', help='Count in the left direction')
 
   subp = parser.add_subparsers()
   detect_p = subp.add_parser('detect', help='Adds tensorflow detection to classify categories')
