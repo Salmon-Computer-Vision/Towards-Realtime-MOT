@@ -120,8 +120,9 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
 
     num_ids = {}
     counted_ids = [] # IDs that are counted
-    count_thresh = opt.img_size[0] * 0.40
+    count_thresh = opt.img_size[0] * 0.40 # Box must be past 40% of the screen to the right
     hist_thresh = math.ceil(frame_rate / 4) # A quarter of a second
+    horiz_thresh = 1.3 # Forces rectangular bounding boxes (Rect ratio)
     print(count_thresh)
     for path, img, img0 in dataloader:
         if frame_id % 20 == 0:
@@ -139,7 +140,7 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
         for t in online_targets:
             tlwh = t.tlwh
             tid = t.track_id
-            horizontal = tlwh[2] / tlwh[3] > 1.6 # his forces horizontal bounding boxes
+            horizontal = tlwh[2] / tlwh[3] > horiz_thresh
             if tlwh[2] * tlwh[3] > opt.min_box_area and horizontal:
                 if not tid in num_ids:
                     num_ids[tid] = 1
