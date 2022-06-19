@@ -11,3 +11,5 @@ pandas==1.2.1
 torchvision==0.8.2
 matplotlib==3.3.4
 scikit_learn==0.24.2
+ffmpeg
+ffmpeg_python
