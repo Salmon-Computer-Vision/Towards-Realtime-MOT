@@ -202,7 +202,7 @@ def track(opt):
     #try:
     _,_,_,counted_ids = eval_seq(opt, dataloader, 'mot', result_filename,
              save_dir=frame_dir, show_image=opt.show_image, frame_rate=frame_rate,
-             left_direct=args.left)
+             left_direct=opt.left)
     #except Exception as e:
     #    logger.info(e)
 
