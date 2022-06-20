@@ -157,8 +157,21 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
                     num_ids[tid] = 1
                 else:
                     num_ids[tid] += 1
-                    if past_thresh(tlwh) and not tid in counted_ids and num_ids[tid] > hist_thresh:
-                        counted_ids.append(tid)
+
+                    past_left = tlwh[0] + tlwh[2] < left_dir_thresh
+                    past_right = tlwh[0] > right_dir_thresh
+                    if past_left or past_right:
+                        countable = not tid in counted_ids and num_ids[tid] > hist_thresh
+                        left_count = past_left and left_direct
+                        right_count = past_right and not left_direct
+                        if (left_count or right_count) and countable:
+                            counted_ids.append(tid)
+
+                        left_minus_count = past_left and not left_direct
+                        right_minus_count = past_right and left_direct
+                        if (left_minus_count or right_minus_count) and tid in counted_ids:
+                            counted_ids.remove(tid) # Object moved in opposite direction
+
                 online_tlwhs.append(tlwh)
                 online_ids.append(tid)
         timer.toc()
