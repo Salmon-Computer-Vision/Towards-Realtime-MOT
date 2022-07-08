@@ -44,6 +44,7 @@ import utils.datasets as datasets
 from utils import visualization as vis
 import ffmpeg
 
+import pandas as pd
 
 logger.setLevel(logging.INFO)
 
@@ -67,12 +68,6 @@ def write_results(filename, results, data_type):
                 line = save_format.format(frame=frame_id, id=track_id, x1=x1, y1=y1, x2=x2, y2=y2, w=w, h=h)
                 f.write(line)
     logger.info('save results to {}'.format(filename))
-
-def write_counts(filename, counted_ids):
-    with open(filename, 'w') as f:
-        f.write(f"IDs: {counted_ids}\n")
-        f.write(f"Count: {len(counted_ids)}\n")
-    logger.info(f"saved counts to {filename}")
 
 def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_image=True, frame_rate=30, left_direct=False):
     from tracker.multitracker import JDETracker
@@ -118,23 +113,24 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
     results = []
     frame_id = 0
 
+    COL_COUNTABLE_ID = 'Countable ID'
+    COL_FRAME_NUM = 'Frame Num'
+    COL_DIRECTION = 'Direction'
+    VAL_LEFT = 'Left'
+    VAL_RIGHT = 'Right'
+
     num_ids = {}
-    counted_ids = [] # IDs that are counted
+    # IDs that are countable
+    counted_ids = pd.DataFrame(columns=[COL_FRAME_NUM, COL_COUNTABLE_ID, COL_DIRECTION]) 
 
     count_thresh = 0.40 # Box must be past this percentage of the screen in the direction specified
 
-    def past_thresh(tlwh):
-        right_dir_thresh = opt.img_size[0] * count_thresh
-        left_dir_thresh = opt.img_size[0] * (1.0 - count_thresh)
-
-        if left_direct:
-            return tlwh[0] + tlwh[2] < left_dir_thresh
-        else:
-            return tlwh[0] > right_dir_thresh
+    right_dir_thresh = opt.img_size[0] * count_thresh
+    left_dir_thresh = opt.img_size[0] * (1.0 - count_thresh)
 
     hist_thresh = math.ceil(frame_rate / 4) # A quarter of a second
     horiz_thresh = 1.3 # Forces rectangular bounding boxes (Rect ratio)
-    print(count_thresh)
+    logger.info(f'Count threshold: {count_thresh}')
     for path, img, img0 in dataloader:
         if frame_id % 20 == 0:
             logger.info('Processing frame {} ({:.2f} fps)'.format(frame_id, 1./max(1e-5, timer.average_time)))
@@ -161,16 +157,27 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
                     past_left = tlwh[0] + tlwh[2] < left_dir_thresh
                     past_right = tlwh[0] > right_dir_thresh
                     if past_left or past_right:
-                        countable = not tid in counted_ids and num_ids[tid] > hist_thresh
-                        left_count = past_left and left_direct
-                        right_count = past_right and not left_direct
-                        if (left_count or right_count) and countable:
-                            counted_ids.append(tid)
+                        det_id = counted_ids[counted_ids[COL_COUNTABLE_ID] == tid]
+                        if not det_id.empty:
+                            last_row = det_id.iloc[-1,:]
+                            # Check if last entry was a left or right direction
+                            # This is done to prevent constant entries
+                            not_last_left = last_row[COL_DIRECTION] != VAL_LEFT
+                            not_last_right = last_row[COL_DIRECTION] != VAL_RIGHT
+                        else:
+                            not_last_left = True
+                            not_last_right = True
 
-                        left_minus_count = past_left and not left_direct
-                        right_minus_count = past_right and left_direct
-                        if (left_minus_count or right_minus_count) and tid in counted_ids:
-                            counted_ids.remove(tid) # Object moved in opposite direction
+                        def append_id(direction):
+                            temp_df = pd.DataFrame([[frame_id, tid, direction]], 
+                                    columns=[COL_FRAME_NUM, COL_COUNTABLE_ID, COL_DIRECTION])
+                            return pd.concat([counted_ids, temp_df], ignore_index=True)
+
+                        countable = num_ids[tid] > hist_thresh
+                        if past_left and not_last_left and countable:
+                            counted_ids = append_id(VAL_LEFT)
+                        elif past_right and not_last_right and countable:
+                            counted_ids = append_id(VAL_RIGHT)
 
                 online_tlwhs.append(tlwh)
                 online_ids.append(tid)
@@ -214,8 +221,7 @@ def track(opt):
     frame_dir = None if opt.output_format=='text' else osp.join(result_root, 'frame')
     #try:
     _,_,_,counted_ids = eval_seq(opt, dataloader, 'mot', result_filename,
-             save_dir=frame_dir, show_image=opt.show_image, frame_rate=frame_rate,
-             left_direct=opt.left)
+             save_dir=frame_dir, show_image=opt.show_image, frame_rate=frame_rate)
     #except Exception as e:
     #    logger.info(e)
 
@@ -230,13 +236,14 @@ def track(opt):
 
         #cmd_str = 'ffmpeg -f image2 -i {}/%05d.jpg -c:v libx264 {}'.format(osp.join(result_root, 'frame'), output_video_path)
 
-    write_counts(osp.join(result_root, "counts.txt"), counted_ids)
-    print("IDs:", counted_ids)
-    print("Count:", len(counted_ids))
-
+    name = osp.splitext(osp.basename(opt.input))[0]
+    outpath = osp.join(result_root, f'{name}.csv')
+    counted_ids.to_csv(outpath)
+    logger.info(f"saved counts to {outpath}")
+    logger.info(counted_ids)
         
 if __name__ == '__main__':
-  parser = argparse.ArgumentParser(prog='demo.py')
+  parser = argparse.ArgumentParser(description="Records long rectangular countable object IDs in a csv. Whether they moved towards the left or right is also added.")
   parser.add_argument('--cfg', type=str, default='cfg/yolov3_1088x608.cfg', help='cfg file path')
   parser.add_argument('--weights', type=str, default='weights/latest.pt', help='path to weights file')
   parser.add_argument('--iou-thres', type=float, default=0.5, help='iou threshold required to qualify as detected')
@@ -249,7 +256,8 @@ if __name__ == '__main__':
   parser.add_argument('--output-format', type=str, default='video', choices=['video', 'text'], help='Expected output format (Default: Video)')
   parser.add_argument('--output-root', type=str, default='results', help='expected output root path')
   parser.add_argument('--show-image', action='store_true', help='Show image frames as they are being processed')
-  parser.add_argument('-l', '--left', action='store_true', help='Count in the left direction')
+  #parser.add_argument('-l', '--left', action='store_true', help='Count in the left direction')
+  parser.add_argument('--count-thresh', default=0.4, help='Ratio of how far across the screen the object must be before being counted. Default 0.4, meaning 40%% of the screen must be crossed before being countable.')
 
   subp = parser.add_subparsers()
   detect_p = subp.add_parser('detect', help='Adds tensorflow detection to classify categories')
