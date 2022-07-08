@@ -113,6 +113,7 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
     results = []
     frame_id = 0
 
+    COL_FILENAME = 'Filename'
     COL_COUNTABLE_ID = 'Countable ID'
     COL_FRAME_NUM = 'Frame Num'
     COL_DIRECTION = 'Direction'
@@ -121,7 +122,7 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
 
     num_ids = {}
     # IDs that are countable
-    counted_ids = pd.DataFrame(columns=[COL_FRAME_NUM, COL_COUNTABLE_ID, COL_DIRECTION]) 
+    counted_ids = pd.DataFrame(columns=[COL_FILENAME, COL_FRAME_NUM, COL_COUNTABLE_ID, COL_DIRECTION]) 
 
     count_thresh = 0.40 # Box must be past this percentage of the screen in the direction specified
 
@@ -169,8 +170,8 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
                             not_last_right = True
 
                         def append_id(direction):
-                            temp_df = pd.DataFrame([[frame_id, tid, direction]], 
-                                    columns=[COL_FRAME_NUM, COL_COUNTABLE_ID, COL_DIRECTION])
+                            temp_df = pd.DataFrame([[osp.basename(opt.input), frame_id, tid, direction]], 
+                                    columns=[COL_FILENAME, COL_FRAME_NUM, COL_COUNTABLE_ID, COL_DIRECTION])
                             return pd.concat([counted_ids, temp_df], ignore_index=True)
 
                         countable = num_ids[tid] > hist_thresh
@@ -238,7 +239,7 @@ def track(opt):
 
     name = osp.splitext(osp.basename(opt.input))[0]
     outpath = osp.join(result_root, f'{name}.csv')
-    counted_ids.to_csv(outpath)
+    counted_ids.to_csv(outpath, index=False)
     logger.info(f"saved counts to {outpath}")
     logger.info(counted_ids)
         
