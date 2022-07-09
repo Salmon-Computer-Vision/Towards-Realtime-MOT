@@ -48,6 +48,13 @@ import pandas as pd
 
 logger.setLevel(logging.INFO)
 
+COL_FILENAME = 'Filename'
+COL_COUNTABLE_ID = 'Countable ID'
+COL_FRAME_NUM = 'Frame Num'
+COL_DIRECTION = 'Direction'
+VAL_LEFT = 'Left'
+VAL_RIGHT = 'Right'
+
 def write_results(filename, results, data_type):
     if data_type == 'mot':
         save_format = '{frame},{id},{x1},{y1},{w},{h},1,-1,-1,-1\n'
@@ -113,13 +120,6 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
     results = []
     frame_id = 0
 
-    COL_FILENAME = 'Filename'
-    COL_COUNTABLE_ID = 'Countable ID'
-    COL_FRAME_NUM = 'Frame Num'
-    COL_DIRECTION = 'Direction'
-    VAL_LEFT = 'Left'
-    VAL_RIGHT = 'Right'
-
     num_ids = {}
     # IDs that are countable
     counted_ids = pd.DataFrame(columns=[COL_FILENAME, COL_FRAME_NUM, COL_COUNTABLE_ID, COL_DIRECTION]) 
@@ -170,7 +170,7 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
                             not_last_right = True
 
                         def append_id(direction):
-                            temp_df = pd.DataFrame([[osp.basename(opt.input), frame_id, tid, direction]], 
+                            temp_df = pd.DataFrame([[opt.input, frame_id, tid, direction]], 
                                     columns=[COL_FILENAME, COL_FRAME_NUM, COL_COUNTABLE_ID, COL_DIRECTION])
                             return pd.concat([counted_ids, temp_df], ignore_index=True)
 
@@ -240,8 +240,23 @@ def track(opt):
     name = osp.splitext(osp.basename(opt.input))[0]
     outpath = osp.join(result_root, f'{name}.csv')
     counted_ids.to_csv(outpath, index=False)
-    logger.info(f"saved counts to {outpath}")
+    logger.info(f"Saved countable to {outpath}")
     logger.info(counted_ids)
+
+def count(opt):
+    import glob
+    COL_COUNT = 'Count'
+
+    df_counts = pd.DataFrame(columns=[COL_FILENAME, COL_COUNT]).set_index(COL_FILENAME)
+    for csv in glob.glob(os.path.join(opt.folder, '**', '*.csv'), recursive=True):
+        df = pd.read_csv(csv)
+        df_direct = df.pivot_table(index=COL_COUNTABLE_ID, 
+                columns=COL_DIRECTION, values=COL_FRAME_NUM, aggfunc='count')
+
+        df_counts.loc[csv] = df_direct[df_direct[VAL_LEFT] == df_direct[VAL_RIGHT]][VAL_LEFT].count()
+
+    df_counts.to_csv(opt.output_csv)
+    logger.info(f"Saved counts to {opt.output_csv}")
         
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description="Records long rectangular countable object IDs in a csv. Whether they moved towards the left or right is also added.")
@@ -260,14 +275,21 @@ if __name__ == '__main__':
   #parser.add_argument('-l', '--left', action='store_true', help='Count in the left direction')
   parser.add_argument('--count-thresh', default=0.4, help='Ratio of how far across the screen the object must be before being counted. Default 0.4, meaning 40%% of the screen must be crossed before being countable.')
 
-  subp = parser.add_subparsers()
+  subp = parser.add_subparsers(dest='cmd')
   detect_p = subp.add_parser('detect', help='Adds tensorflow detection to classify categories')
   detect_p.add_argument('model_dir', help='Path to the model folder. Must have "pipeline.json" in the directory')
   detect_p.add_argument('ckpt_path', help='Path to the checkpoint file. Eg. /path/to/ckpt-0')
   detect_p.add_argument('labels_path', help='Path to the labels text file. Eg. /path/to/labels.pbtxt')
 
+  count_p = subp.add_parser('count', help='Counts the objects in the csv files generated from the MOT')
+  count_p.add_argument('folder', help='Path to directory of csv files')
+  count_p.add_argument('-o', '--output-csv', default='all_counts.csv', help='Path to the output csv file')
+
   opt = parser.parse_args()
   print(opt, end='\n\n')
 
-  track(opt)
+  if opt.cmd == 'count':
+      count(opt)
+  else:
+      track(opt)
 
