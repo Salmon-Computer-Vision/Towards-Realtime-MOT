@@ -45,6 +45,7 @@ from utils import visualization as vis
 import ffmpeg
 
 import pandas as pd
+import glob
 
 logger.setLevel(logging.INFO)
 
@@ -124,13 +125,13 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
     # IDs that are countable
     counted_ids = pd.DataFrame(columns=[COL_FILENAME, COL_FRAME_NUM, COL_COUNTABLE_ID, COL_DIRECTION]) 
 
-    count_thresh = 0.40 # Box must be past this percentage of the screen in the direction specified
+    count_thresh = 0.3 # Box must be past this percentage of the screen in the direction specified
 
     right_dir_thresh = opt.img_size[0] * count_thresh
     left_dir_thresh = opt.img_size[0] * (1.0 - count_thresh)
 
     hist_thresh = math.ceil(frame_rate / 4) # A quarter of a second
-    horiz_thresh = 1.3 # Forces rectangular bounding boxes (Rect ratio)
+    horiz_thresh = 0.9 # Forces rectangular bounding boxes (Rect ratio)
     logger.info(f'Count threshold: {count_thresh}')
     for path, img, img0 in dataloader:
         if frame_id % 20 == 0:
@@ -196,8 +197,10 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
         if save_dir is not None:
             cv2.imwrite(os.path.join(save_dir, '{:05d}.jpg'.format(frame_id)), online_im)
         frame_id += 1
-    # save results
-    write_results(result_filename, results, data_type)
+
+    if opt.output_format != 'none':
+        # save results
+        write_results(result_filename, results, data_type)
 
     return frame_id, timer.average_time, timer.calls, counted_ids
 
@@ -215,11 +218,12 @@ def track(opt):
 
     logger.info('Starting tracking...')
     if opt.input_format == 'video':
+      filename = osp.splitext(osp.basename(opt.input))[0]
       dataloader = datasets.LoadVideo(opt.input, opt.img_size)
-      result_filename = os.path.join(result_root, 'results.txt')
+      result_filename = os.path.join(result_root, f'{filename}.txt')
       frame_rate = dataloader.frame_rate 
 
-    frame_dir = None if opt.output_format=='text' else osp.join(result_root, 'frame')
+    frame_dir = osp.join(result_root, filename) if opt.output_format=='video' else None
     #try:
     _,_,_,counted_ids = eval_seq(opt, dataloader, 'mot', result_filename,
              save_dir=frame_dir, show_image=opt.show_image, frame_rate=frame_rate)
@@ -227,36 +231,51 @@ def track(opt):
     #    logger.info(e)
 
     if opt.output_format == 'video':
-        output_video_path = osp.join(result_root, 'result.mp4')
+        output_video_path = osp.join(result_root, f'{filename}.mp4')
 
         (
-          ffmpeg.input(f"{osp.join(result_root, 'frame')}/%05d.jpg", f='image2', framerate=frame_rate)
+          ffmpeg.input(f"{frame_dir}/%05d.jpg", f='image2', framerate=frame_rate)
           .output(output_video_path, vcodec='libx264')
           .run()
         )
 
         #cmd_str = 'ffmpeg -f image2 -i {}/%05d.jpg -c:v libx264 {}'.format(osp.join(result_root, 'frame'), output_video_path)
 
-    name = osp.splitext(osp.basename(opt.input))[0]
-    outpath = osp.join(result_root, f'{name}.csv')
+    outpath = osp.join(result_root, f'{filename}.csv')
     counted_ids.to_csv(outpath, index=False)
     logger.info(f"Saved countable to {outpath}")
     logger.info(counted_ids)
 
 def count(opt):
-    import glob
     COL_COUNT = 'Count'
 
     df_counts = pd.DataFrame(columns=[COL_FILENAME, COL_COUNT]).set_index(COL_FILENAME)
     for csv in glob.glob(os.path.join(opt.folder, '**', '*.csv'), recursive=True):
+        logger.info(csv)
         df = pd.read_csv(csv)
-        df_direct = df.pivot_table(index=COL_COUNTABLE_ID, 
-                columns=COL_DIRECTION, values=COL_FRAME_NUM, aggfunc='count')
 
-        df_counts.loc[csv] = df_direct[df_direct[VAL_LEFT] == df_direct[VAL_RIGHT]][VAL_LEFT].count()
+        count = 0
+        if not df.empty:
+            df_direct = df.pivot_table(index=COL_COUNTABLE_ID, 
+                    columns=COL_DIRECTION, values=COL_FRAME_NUM, aggfunc='count')
+
+            if  all(val in df_direct.columns for val in [VAL_LEFT, VAL_RIGHT]):
+                count = df_direct[df_direct[VAL_LEFT] == df_direct[VAL_RIGHT]][VAL_LEFT].count()
+
+        df_counts.loc[csv] = count
 
     df_counts.to_csv(opt.output_csv)
     logger.info(f"Saved counts to {opt.output_csv}")
+
+def recursive(opt):
+    for vid in glob.glob(os.path.join(opt.folder, '**', '*.*'), recursive=True):
+        input_dir = os.path.dirname(vid)
+        output_dir = os.path.join(opt.output_path, os.path.relpath(input_dir, opt.folder))
+        os.makedirs(output_dir, exist_ok=True)
+
+        opt.output_root = output_dir
+        opt.input = vid
+        track(opt)
         
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description="Records long rectangular countable object IDs in a csv. Whether they moved towards the left or right is also added.")
@@ -269,7 +288,7 @@ if __name__ == '__main__':
   parser.add_argument('--track-buffer', type=int, default=30, help='tracking buffer')
   parser.add_argument('--input-format', type=str, default='video', choices=['video', 'images'], help='Expected input format (Default: Video)')
   parser.add_argument('--input', type=str, help='path to the input video or image directory depending on input format.')
-  parser.add_argument('--output-format', type=str, default='video', choices=['video', 'text'], help='Expected output format (Default: Video)')
+  parser.add_argument('--output-format', type=str, default='video', choices=['video', 'text', 'none'], help='Expected output format (Default: Video)')
   parser.add_argument('--output-root', type=str, default='results', help='expected output root path')
   parser.add_argument('--show-image', action='store_true', help='Show image frames as they are being processed')
   #parser.add_argument('-l', '--left', action='store_true', help='Count in the left direction')
@@ -285,11 +304,17 @@ if __name__ == '__main__':
   count_p.add_argument('folder', help='Path to directory of csv files')
   count_p.add_argument('-o', '--output-csv', default='all_counts.csv', help='Path to the output csv file')
 
+  recursive_p = subp.add_parser('recursive', help='Recursively runs MOT on all files in subdirectories')
+  recursive_p.add_argument('folder', help='Path to directory of videos')
+  recursive_p.add_argument('-o', '--output-path', default='countables', help='Path to the output folder (Default: countables)')
+
   opt = parser.parse_args()
   print(opt, end='\n\n')
 
   if opt.cmd == 'count':
       count(opt)
+  elif opt.cmd == 'recursive':
+      recursive(opt)
   else:
       track(opt)
 
