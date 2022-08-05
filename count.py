@@ -134,7 +134,7 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
     horiz_thresh = 0.9 # Forces rectangular bounding boxes (Rect ratio)
     logger.info(f'Count threshold: {count_thresh}')
     for path, img, img0 in dataloader:
-        if not img0:
+        if img0 is None:
             continue
 
         if frame_id % 20 == 0:
