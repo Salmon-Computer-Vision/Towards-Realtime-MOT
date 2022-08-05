@@ -5,12 +5,12 @@ import os.path as osp
 import random
 import time
 from collections import OrderedDict
-from log import logger
 
 import cv2
 import numpy as np
 import torch
 
+from utils.log import logger
 from torch.utils.data import Dataset
 from utils.utils import xyxy2xywh
 
