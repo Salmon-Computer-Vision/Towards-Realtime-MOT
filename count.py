@@ -278,7 +278,7 @@ def recursive(opt):
         filename = osp.splitext(osp.basename(vid))[0]
         outpath = osp.join(output_dir, f'{filename}.csv')
         if os.path.exists(outpath):
-            logger.info(f"Skipping since {outpath} exists...")
+            logger.info(f"Skipping, since {outpath} exists...")
             continue
 
         os.makedirs(output_dir, exist_ok=True)
