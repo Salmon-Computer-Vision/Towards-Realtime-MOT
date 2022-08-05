@@ -5,6 +5,7 @@ import os.path as osp
 import random
 import time
 from collections import OrderedDict
+from log import logger
 
 import cv2
 import numpy as np
@@ -112,7 +113,7 @@ class LoadVideo:  # for inference
         # Read image
         res, img0 = self.cap.read()  # BGR
         if img0 is None:
-            print('Failed to load frame {:d}'.format(self.count))
+            logger.error('Failed to load frame {:d}'.format(self.count))
             return self.count, None, img0 
         img0 = cv2.resize(img0, (self.w, self.h))
 
