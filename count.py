@@ -46,6 +46,7 @@ import ffmpeg
 
 import pandas as pd
 import glob
+import traceback
 
 logger.setLevel(logging.INFO)
 
@@ -222,7 +223,13 @@ def track(opt):
     logger.info('Starting tracking...')
     if opt.input_format == 'video':
       filename = osp.splitext(osp.basename(opt.input))[0]
-      dataloader = datasets.LoadVideo(opt.input, opt.img_size)
+      try:
+          dataloader = datasets.LoadVideo(opt.input, opt.img_size)
+      except ZeroDivisionError:
+          logger.error(f'{filename} is likely empty or corrupted')
+          traceback.print_exc()
+          return
+
       result_filename = os.path.join(result_root, f'{filename}.txt')
       frame_rate = dataloader.frame_rate 
 
@@ -259,6 +266,7 @@ def count(opt):
 
         count = 0
         if not df.empty:
+            # TODO: Pivot on frame number, too (Detections of same ID and same frame should not happen)
             df_direct = df.pivot_table(index=COL_COUNTABLE_ID, 
                     columns=COL_DIRECTION, values=COL_FRAME_NUM, aggfunc='count')
 
