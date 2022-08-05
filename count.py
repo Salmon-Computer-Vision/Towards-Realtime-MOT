@@ -274,6 +274,13 @@ def recursive(opt):
     for vid in glob.glob(os.path.join(opt.folder, '**', '*.*'), recursive=True):
         input_dir = os.path.dirname(vid)
         output_dir = os.path.join(opt.output_path, os.path.relpath(input_dir, opt.folder))
+
+        filename = osp.splitext(osp.basename(vid))[0]
+        outpath = osp.join(output_dir, f'{filename}.csv')
+        if os.path.exists(outpath):
+            logger.info(f"Skipping since {outpath} exists...")
+            continue
+
         os.makedirs(output_dir, exist_ok=True)
 
         opt.output_root = output_dir
