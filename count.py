@@ -266,6 +266,15 @@ def count(opt):
 
         count = 0
         if not df.empty:
+            if opt.upstream != None:
+                wrong_direction_ids = []
+                for row in df.sort_values(COL_FRAME_NUM)[::-1].iterrows() # Traverse in reverse order
+                    if opt.upstream == 'left' and row[COL_DIRECTION] == VAL_RIGHT:
+                        wrong_direction_ids.append(row[COL_COUNTABLE_ID])
+                    if opt.upstream == 'right' and row[COL_DIRECTION] == VAL_LEFT:
+                        wrong_direction_ids.append(row[COL_COUNTABLE_ID])
+                df = df[~df[COL_COUNTABLE_ID].isin(wrong_direction_ids)] # Remove wrong direction IDs
+
             # TODO: Pivot on frame number, too (Detections of same ID and same frame should not happen)
             df_direct = df.pivot_table(index=COL_COUNTABLE_ID, 
                     columns=COL_DIRECTION, values=COL_FRAME_NUM, aggfunc='count')
@@ -321,6 +330,7 @@ if __name__ == '__main__':
   count_p = subp.add_parser('count', help='Counts the objects in the csv files generated from the MOT')
   count_p.add_argument('folder', help='Path to directory of csv files')
   count_p.add_argument('-o', '--output-csv', default='all_counts.csv', help='Path to the output csv file')
+  count_p.add_argument('-u', '--upstream', default=None, choices=['right', 'left'], help='Specify upstream direction.')
 
   recursive_p = subp.add_parser('recursive', help='Recursively runs MOT on all files in subdirectories')
   recursive_p.add_argument('folder', help='Path to directory of videos')
