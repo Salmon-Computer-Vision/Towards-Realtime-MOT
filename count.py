@@ -267,13 +267,17 @@ def count(opt):
         count = 0
         if not df.empty:
             if opt.upstream != None:
-                wrong_direction_ids = []
-                for row in df.sort_values(COL_FRAME_NUM)[::-1].iterrows() # Traverse in reverse order
-                    if opt.upstream == 'left' and row[COL_DIRECTION] == VAL_RIGHT:
-                        wrong_direction_ids.append(row[COL_COUNTABLE_ID])
-                    if opt.upstream == 'right' and row[COL_DIRECTION] == VAL_LEFT:
-                        wrong_direction_ids.append(row[COL_COUNTABLE_ID])
-                df = df[~df[COL_COUNTABLE_ID].isin(wrong_direction_ids)] # Remove wrong direction IDs
+                seen = []
+                keep_ids = []
+                for _, row in df.sort_values(COL_FRAME_NUM)[::-1].iterrows(): # Traverse in reverse order
+                    if row[COL_COUNTABLE_ID] in seen:
+                        continue
+                    seen.append(row[COL_COUNTABLE_ID])
+                    if opt.upstream == 'left' and row[COL_DIRECTION] == VAL_LEFT:
+                        keep_ids.append(row[COL_COUNTABLE_ID])
+                    if opt.upstream == 'right' and row[COL_DIRECTION] == VAL_RIGHT:
+                        keep_ids.append(row[COL_COUNTABLE_ID])
+                df = df[df[COL_COUNTABLE_ID].isin(keep_ids)]
 
             # TODO: Pivot on frame number, too (Detections of same ID and same frame should not happen)
             df_direct = df.pivot_table(index=COL_COUNTABLE_ID, 
