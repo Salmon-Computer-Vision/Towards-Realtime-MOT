@@ -43,6 +43,12 @@ $ sudo -H pip3 install torchvision-0.11.0a0+fa347eb-cp36-cp36m-linux_aarch64.whl
 
 # Usage
 
+Run count for one video:
+
+```bash
+python count.py --cfg weights/cfg/yolo3.cfg --weights weights/latest.pt --input path/to/vid.mp4
+```
+
 Run count for entire folder of videos:
 ```bash
 python count.py --output-format none --cfg weights/cfg/yolo3.cfg --weights weights/latest.pt recursive path/to/vid_folder
