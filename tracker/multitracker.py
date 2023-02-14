@@ -6,6 +6,7 @@ from utils.log import logger
 from models import *
 from tracker import matching
 from .basetrack import BaseTrack, TrackState
+from trt_models import DarknetTrt
 
 EPS = 1e-5
 
@@ -160,16 +161,19 @@ class STrack(BaseTrack):
 
 
 class JDETracker(object):
-    def __init__(self, opt, frame_rate=30):
+    def __init__(self, opt, frame_rate=30, use_trt=False):
         self.opt = opt
         #self.model = Darknet(opt.cfg, nID=14455)
-        self.model = Darknet(opt.cfg)
-        # load_darknet_weights(self.model, opt.weights)
-        self.model.load_state_dict(torch.load(opt.weights, map_location='cpu')['model'], strict=False)
-        if torch.cuda.is_available():
-            self.model.cuda().eval()
+        if not use_trt:
+            self.model = Darknet(opt.cfg)
+            # load_darknet_weights(self.model, opt.weights)
+            self.model.load_state_dict(torch.load(opt.weights, map_location='cpu')['model'], strict=False)
+            if torch.cuda.is_available():
+                self.model.cuda().eval()
+            else:
+                self.model.eval()
         else:
-            self.model.eval()
+            self.model = DarknetTrt(opt)
 
         self.tracked_stracks = []  # type: list[STrack]
         self.lost_stracks = []  # type: list[STrack]

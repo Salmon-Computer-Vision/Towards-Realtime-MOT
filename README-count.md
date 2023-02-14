@@ -12,7 +12,7 @@ sudo ln -s /usr/bin/llvm-config-9 /usr/bin/llvm-config
 Setup and build tools for the packages:
 ```bash
 pip3 install -U pip
-pip3 install setuptools wheel
+pip3 install -U setuptools wheel
 ```
 
 [PyTorch

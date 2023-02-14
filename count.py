@@ -324,6 +324,7 @@ if __name__ == '__main__':
   parser.add_argument('--show-image', action='store_true', help='Show image frames as they are being processed')
   #parser.add_argument('-l', '--left', action='store_true', help='Count in the left direction')
   parser.add_argument('--count-thresh', default=0.4, help='Ratio of how far across the screen the object must be before being counted. Default 0.4, meaning 40%% of the screen must be crossed before being countable.')
+  parser.add_argument('--use-trt', action='store_true', help='Use TensorRT as the weights input')
 
   subp = parser.add_subparsers(dest='cmd')
   detect_p = subp.add_parser('detect', help='Adds tensorflow detection to classify categories')
